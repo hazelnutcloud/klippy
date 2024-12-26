@@ -13,7 +13,7 @@ pub fn run() {
             }
             app.handle().plugin(
                 tauri_plugin_global_shortcut::Builder::new()
-                    .with_shortcut("ctrl+alt+k")?
+                    .with_shortcut("alt+.")?
                     .with_handler(|app, _shortcut, event| match event.state() {
                         tauri_plugin_global_shortcut::ShortcutState::Pressed => {
                             app.emit("hide", ()).unwrap();
