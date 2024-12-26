@@ -1,4 +1,5 @@
 use tauri::{Emitter, Listener, WebviewUrl, WebviewWindowBuilder};
+use tauri_plugin_positioner::{Position, WindowExt};
 
 pub fn run() {
     tauri::Builder::default()
@@ -10,10 +11,9 @@ pub fn run() {
                         .build(),
                 )?;
             }
-
             app.handle().plugin(
                 tauri_plugin_global_shortcut::Builder::new()
-                    .with_shortcut("alt+k")?
+                    .with_shortcut("ctrl+alt+k")?
                     .with_handler(|app, _shortcut, event| match event.state() {
                         tauri_plugin_global_shortcut::ShortcutState::Pressed => {
                             app.emit("hide", ()).unwrap();
@@ -22,18 +22,27 @@ pub fn run() {
                     })
                     .build(),
             )?;
+            app.handle().plugin(tauri_plugin_positioner::init())?;
 
             let cursor = app.cursor_position()?;
-            let monitor = app.monitor_from_point(cursor.x, cursor.y)?.unwrap();
-            let width = 320.;
+            let monitor = app.monitor_from_point(cursor.x, cursor.y)?.unwrap_or(
+                app.primary_monitor()?.unwrap_or(
+                    app.available_monitors()?
+                        .first()
+                        .expect("no monitors found")
+                        .clone(),
+                ),
+            );
+
             let window_builder = WebviewWindowBuilder::new(app, "klippy", WebviewUrl::default())
-                .decorations(false)
                 .skip_taskbar(true)
                 .always_on_top(true)
-                .inner_size(width, monitor.size().height as f64 - 88.0)
-                .position(monitor.size().width as f64 - (width + 18.), 0.)
-                .resizable(false);
+                .inner_size(320., monitor.size().height as f64 - 88.);
             let window = window_builder.build()?;
+
+            window.set_decorations(false)?;
+            window.set_resizable(false)?;
+            window.move_window(Position::TopRight)?;
 
             app.listen("hide", move |_| {
                 if window.is_visible().unwrap() {
