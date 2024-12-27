@@ -23,19 +23,19 @@
 		]}
 	>
 		{#if isUser}
-			<User size={20}></User>
+			<div class="self-start pt-[0.4rem]">
+				<User size={20}></User>
+			</div>
 		{/if}
-		<div class={'mt-1 text-sm'}>
+		<div
+			class={'prose prose-zinc dark:prose-invert prose-sm prose-code:font-sans prose-code:text-sm mt-1'}
+		>
 			{#if isUser}
 				{message.content}
 			{:else}
-				<div
-					class="prose prose-zinc dark:prose-invert prose-sm prose-code:font-sans prose-code:text-sm contents"
-				>
-					{#await markdownProcessor.process(message.content) then markup}
-						{@html markup}
-					{/await}
-				</div>
+				{#await markdownProcessor.process(message.content) then markup}
+					{@html markup}
+				{/await}
 			{/if}
 		</div>
 	</div>

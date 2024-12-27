@@ -1,70 +1,92 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
+	import * as Command from '$lib/components/ui/command';
 
-	// let input: HTMLInputElement;
+	let inputDiv: HTMLDivElement;
+	let popupInput: HTMLInputElement | null = $state(null);
+	$effect(() => {
+		console.log(popupInput);
+	});
 
 	const { disabled = false, onsubmit }: { disabled?: boolean; onsubmit: (message: string) => {} } =
 		$props();
 
-	let message = $state('');
-	// let displayMessage = $derived(parseMessage(message));
+	let textinput = $state('');
 
-	const trimmedMessage = $derived(message.trim());
+	let popupActive = $state(false);
+	let popupPosition = $state({ top: 0, left: 0 });
 
-	// function parseMessage(message: string) {
-	// 	const sanitized = message.replace(/[&<>"']/g, (char) => {
-	// 		const entities: Record<string, string> = {
-	// 			'&': '&amp;',
-	// 			'<': '&lt;',
-	// 			'>': '&gt;',
-	// 			'"': '&quot;',
-	// 			"'": '&#39;'
-	// 		};
-	// 		return entities[char];
-	// 	});
+	function handleKeydown(e: KeyboardEvent & { currentTarget: EventTarget & HTMLDivElement }) {
+		if (e.key === '@') {
+			const selection = window.getSelection();
+			const range = selection?.getRangeAt(0);
 
-	// 	const aliasRegexp = createRegExp(
-	// 		maybe(oneOrMore(whitespace)).grouped(),
-	// 		exactly('@').and(oneOrMore(not.whitespace)).notAfter(not.whitespace).grouped(),
-	// 		maybe(oneOrMore(whitespace)).grouped(),
-	// 		['g']
-	// 	);
+			if (range) {
+				const startOffset = range.startOffset;
+				const textContent = e.currentTarget.textContent || '';
 
-	// 	return sanitized.replace(
-	// 		aliasRegexp,
-	// 		(_, space, tag, space2) =>
-	// 			`${space ? space.replace(' ', '&nbsp') : ''}<span class="text-blue-500 bg-blue-100 rounded">${tag}</span>${space2 ? space2.replace(' ', '&nbsp') : ''}`
-	// 	);
-	// }
+				// Check if we're at the start or if previous char is whitespace
+				const isAtStart = startOffset === 0;
+				const prevChar = startOffset > 0 ? textContent[startOffset - 1] : '';
+				const nextChar = startOffset > 0 ? (textContent[startOffset] ?? ' ') : '';
+				const isPrevCharWhitespace = /\s/.test(prevChar);
+				const isNextCharWhitespace = /\s/.test(nextChar);
 
-	function handleSubmit(e: SubmitEvent & { currentTarget: EventTarget & HTMLFormElement }) {
-		e.preventDefault();
-		if (!trimmedMessage) return;
-		onsubmit(trimmedMessage);
-		message = '';
+				if (isAtStart || (isPrevCharWhitespace && isNextCharWhitespace)) {
+					// Get caret position
+					const rect = range.getBoundingClientRect();
+
+          console.log(rect)
+
+					popupPosition = {
+						top: rect.top - 160, // 160 = popup height (40) * 4
+						left: rect.left
+					};
+
+					popupActive = true;
+					setTimeout(() => {
+						popupInput?.focus();
+					}, 0);
+					return;
+				}
+			}
+		}
+	}
+
+	function handleInput() {
+		textinput = inputDiv.textContent ?? '';
 	}
 </script>
 
-<form class="flex gap-2 p-4" onsubmit={handleSubmit}>
-	<!-- <div class="relative flex-1"> -->
-	<!-- <Input
-			type="text"
-			bind:value={message}
-			class="relative z-10 bg-transparent text-transparent caret-foreground"
-		/> -->
-	<!-- <div
-			class="whitespace-preserve absolute left-0 top-0 z-0 flex h-full w-full items-center px-3 py-2 text-sm"
-		>
-			{@html displayMessage}
-		</div> -->
-	<!-- </div> -->
-	<Input type="text" bind:value={message} />
-	<Button type="submit" disabled={disabled || !trimmedMessage}>Send</Button>
-</form>
-
-<!-- <style>
-	.whitespace-preserve {
-		white-space-collapse: preserve;
-	}
-</style> -->
+<div class="relative flex gap-2 p-4">
+	{#if popupActive}
+		<div class="fixed h-40" style="top: {popupPosition.top}px; left: {popupPosition.left}px">
+			<Command.Root class="outline outline-1 outline-muted">
+				<Command.Input placeholder="Add some context..." bind:ref={popupInput}></Command.Input>
+				<Command.List>
+					<Command.Empty>Nothing found...</Command.Empty>
+					<Command.Group heading="suggestions">
+						<Command.Item
+							onclick={() => {
+								popupActive = false;
+								inputDiv.focus();
+							}}
+						>
+							Image
+						</Command.Item>
+					</Command.Group>
+				</Command.List>
+			</Command.Root>
+		</div>
+	{/if}
+	<div
+		bind:this={inputDiv}
+		class="flex w-full items-center rounded p-2 outline outline-1 outline-muted focus:outline-muted-foreground"
+		contenteditable="true"
+		oninput={handleInput}
+		onkeydown={handleKeydown}
+		role="textbox"
+		tabindex="0"
+	></div>
+	<Button type="submit" {disabled}>Send</Button>
+</div>
